@@ -1,0 +1,11 @@
+# Archivos de configuración de Code::Blocks
+*.layout
+*.depend
+
+# Carpetas de compilación
+obj/
+bin/
+
+# Ejecutables y archivos objeto
+*.exe
+*.o
