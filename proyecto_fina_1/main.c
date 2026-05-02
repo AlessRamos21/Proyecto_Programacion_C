@@ -1,38 +1,37 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-// Definición de enumeraciones para mejorar la legibilidad
+// Definir que significa bit 0/1
 enum Estado { LIBRE = 0, OCUPADO = 1 };
 enum Limpieza { LIMPIA = 0, SUCIA = 1 };
 enum TipoCama { TWIN = 0, KING = 1 };
 
-// Estructura de bits para optimizar memoria
+// Estructura de bits
 struct hab_bits {
-    unsigned short estado : 1;      // 1 bit para estado
-    unsigned short limpieza : 1;    // 1 bit para limpieza
-    unsigned short tipo_de_cama : 1; // 1 bit para tipo de cama
+    unsigned short estado : 1;      // 1 bit para cada cosa
+    unsigned short limpieza : 1;
+    unsigned short tipo_de_cama : 1;
 };
 
-// Unión que solapa los bits con el id_huesped
+// La union con la estructura de bits junto con el id del huesped
 union habitacion {
     struct hab_bits bits;
     unsigned short id_huesped;
 };
 
-// Función de checkout usando punteros (como pide la cátedra)
+// Función de checkout
 void procesar_checkout(union habitacion *ptr) {
     if (ptr != NULL) {
         ptr->bits.estado = LIBRE;
         ptr->bits.limpieza = SUCIA;
-        // El tipo de cama suele mantenerse igual según la habitación
     }
 }
 
 int main() {
-    union habitacion h1;
-    union habitacion *ptr_h1 = &h1; // Puntero a la habitación
+    union habitacion h1; // creacion de la habitacion
+    union habitacion *ptr_h1 = &h1; // apuntamos a la habitación
 
-    // Inicializamos la habitación como ocupada y limpia para la prueba
+    // Se inicia con la habitacion OCUPADA Y LIMPIA (CAMA KING)
     h1.bits.estado = OCUPADO;
     h1.bits.limpieza = LIMPIA;
     h1.bits.tipo_de_cama = KING;
@@ -40,10 +39,10 @@ int main() {
     printf("--- Antes del Checkout ---\n");
     printf("Estado: %d, Limpieza: %d", h1.bits.estado, h1.bits.limpieza);
 
-    // Llamamos a la función
+    // Llamamos a la función para el check out
     procesar_checkout(ptr_h1);
 
-    // Las líneas que agregaste al final para verificar los cambios
+    // Damos un estado de como figuran las habitaciones despues del C.O.
     printf("--- Después del Checkout ---\n");
     printf("Estado: %d\n, %d\n", h1.bits.estado, h1.bits.limpieza);
 
