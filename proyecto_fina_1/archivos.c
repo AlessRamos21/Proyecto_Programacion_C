@@ -1,0 +1,63 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "archivos.h"
+
+// Módulo de Persistencia: Lectura y Variable Dinámica Avanzada
+void cargarHabitacionesDesdeArchivo(Hotel *miHotel) {
+    FILE *archivo = NULL;
+    char linea[100] = ""; // El buffer para chupar el texto de cada renglon
+
+    // Intentamos abrir el archivo fisico en modo lectura
+    archivo = fopen("habitaciones.txt", "r");
+
+    // [Verificación de Punteros en funcionamiento]
+    if (archivo == NULL) {
+        printf("[AVISO]: No se encontro 'habitaciones.txt'. El hotel iniciara vacio.\n");
+        miHotel->habitaciones = NULL;  // Inicializamos en NULL por seguridad
+        miHotel->cantHabitaciones = 0; // Cero habitaciones cargadas
+        return; // Salimos de la función de forma segura
+    }
+
+    // Primera lectura obligatoria de línea antes de entrar al bucle
+    fgets(linea, sizeof(linea), archivo);
+
+    // Mientras NO choquemos con el fin del archivo fisico
+    while (!feof(archivo)) {
+        Habitacion hab_temporal; // Molde suelto en la Pila (Stack)
+
+        // Cortamos la linea usando los puntos y comas ';'
+        int leidos = sscanf(linea, "%d;%d;%f;%d",
+                            &hab_temporal.numero,
+                            &hab_temporal.capacidad,
+                            &hab_temporal.precioPorNoche,
+                            &hab_temporal.estado);
+
+        // Si sscanf logro cortar exitosamente los 4 campos
+        if (leidos == 4) {
+            // Incrementamos el contador de habitaciones del hotel
+            miHotel->cantHabitaciones++;
+
+            // [Variable Dinámica - realloc en funcionamiento]
+            // Modifica el tamaño del bloque de memoria en el Heap (Montón)
+            // para que entre una habitación más al vector.
+            miHotel->habitaciones = realloc(miHotel->habitaciones,
+                                            miHotel->cantHabitaciones * sizeof(Habitacion));
+
+            // [Verificación de Asignación en funcionamiento]
+            if (miHotel->habitaciones != NULL) {
+                // Guardamos los datos en la última posición del vector dinámico
+                miHotel->habitaciones[miHotel->cantHabitaciones - 1] = hab_temporal;
+            } else {
+                printf("[ERROR]: Se quedo sin memoria RAM el sistema.\n");
+                exit(1); // Cerramos el programa porque colapso la memoria
+            }
+        }
+
+        // Siguiente lectura obligatoria al fondo del bucle
+        fgets(linea, sizeof(linea), archivo);
+    }
+
+    // [Cierre de archivo seguro]
+    fclose(archivo);
+    archivo = NULL; // Regla de oro: devolvemos el puntero a un estado seguro
+}

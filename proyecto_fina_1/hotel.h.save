@@ -1,0 +1,26 @@
+#ifndef HOTEL_H_INCLUDED
+#define HOTEL_H_INCLUDED
+
+#include <stddef.h> // Necesario para usar 'size_t' (el contador del vector)
+
+// Constantes en funcionamiento
+#define ESTADO_LIBRE 0
+#define ESTADO_OCUPADA 1
+
+// Estructura de Habitación
+// Cambiamos los bits raros por enteros comunes (int) para poder usar archivos con sscanf
+typedef struct {
+    int numero;
+    int capacidad;
+    float precioPorNoche;
+    int estado;
+} Habitacion;
+
+// Estructura de Control del Vector Dinámico
+// Guarda la dirección de la memoria RAM y sabe cuántas habitaciones cargamos
+typedef struct {
+    Habitacion *habitaciones; // El puntero (*) que se convertirá en un arreglo dinámico
+    size_t cantHabitaciones;  // Contador de habitaciones reales en el sistema
+} Hotel;
+
+#endif
