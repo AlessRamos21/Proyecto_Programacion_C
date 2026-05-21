@@ -34,8 +34,6 @@
 		<Unit filename="archivos.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="archivos.h" />
-		<Unit filename="hotel.h" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
