@@ -1,0 +1,4 @@
+Ticket de check-out
+Huesped: Elias
+Habitacion: 101
+Importe: 10000.00

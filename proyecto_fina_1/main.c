@@ -40,6 +40,7 @@ struct habitacion {
     struct huesped huesped;
 };
 
+/* PROTOTIPOS DE LAS FUNCIONES INTERNAS DE MAIN.C */
 int convertir_cantidad(const char *texto, int *cantidad);
 void inicializar_hotel(struct habitacion *hotel, int cantidad);
 void liberar_hotel(struct habitacion *hotel, int cantidad);
@@ -60,29 +61,52 @@ void mostrar_documento(const struct huesped *huesped);
 void mostrar_menu(void);
 void pausa(void);
 
+/* PROTOTIPOS DE LAS FUNCIONES DE PERSISTENCIA (Ubicadas en archivos.c, vinculadas por Linker) */
+void guardar_base_datos(const struct habitacion *hotel, int cantidad);
+void cargar_base_datos(struct habitacion *hotel, int cantidad);
+int contar_habitaciones_guardadas(void);
+
+
 int main(int argc, char *argv[])
 {
     int cantidad_habitaciones = 0;
     struct habitacion *hotel = NULL;
     int opcion = -1;
 
-    if (argc < 2) {
-        printf("Uso: %s <cantidad_habitaciones>\n", argv[0]);
-        return 1;
+    printf("========================================\n");
+    printf("     INICIALIZACION DEL SISTEMA\n");
+    printf("========================================\n");
+
+    // INTENTAMOS DETECTAR EL TAMAÑO DEL HOTEL ANTERIOR AUTOMATICAMENTE
+    cantidad_habitaciones = contar_habitaciones_guardadas();
+
+    if (cantidad_habitaciones > 0) {
+        // Escenario A: Ya hay un archivo guardado, el programa se saltea la pregunta de carga
+        printf("[SISTEMA]: Detectada base de datos previa con %d habitaciones.\n", cantidad_habitaciones);
+        printf("[SISTEMA]: Sincronizando estados automaticamente...\n\n");
+    } else {
+        // Escenario B: Primera vez que arranca el programa, pide el tamaño de forma interactiva
+        printf("[SISTEMA]: No se detecto historial previo. Inicio en limpio.\n");
+        while (cantidad_habitaciones <= 0) {
+            if (!leer_entero("Ingrese la cantidad de habitaciones para el hotel (Ej: 5): ", &cantidad_habitaciones) || cantidad_habitaciones <= 0) {
+                printf("Error: Debe ingresar un numero entero positivo.\n\n");
+                cantidad_habitaciones = 0;
+            }
+        }
     }
 
-    if (!convertir_cantidad(argv[1], &cantidad_habitaciones)) {
-        printf("Error: la cantidad de habitaciones debe ser un entero positivo.\n");
-        return 1;
-    }
-
+    // Reserva dinamica exacta basada en el flujo anterior
     hotel = calloc((size_t)cantidad_habitaciones, sizeof(struct habitacion));
     if (hotel == NULL) {
         printf("Error: no se pudo reservar memoria.\n");
         return 1;
     }
 
+    // Armamos la plantilla inicial del hotel en la RAM
     inicializar_hotel(hotel, cantidad_habitaciones);
+
+    // Cargamos los datos reales del archivo arriba de la plantilla armada
+    cargar_base_datos(hotel, cantidad_habitaciones);
 
     do {
         mostrar_menu();
@@ -123,6 +147,8 @@ int main(int argc, char *argv[])
                 break;
 
             case 0:
+                // Se guardan los datos antes de liberar la RAM
+                guardar_base_datos(hotel, cantidad_habitaciones);
                 printf("Cerrando sistema...\n");
                 break;
 
@@ -133,12 +159,17 @@ int main(int argc, char *argv[])
         }
     } while (opcion != 0);
 
+    // Liberacion segura de memoria dinamica antes de terminar
     liberar_hotel(hotel, cantidad_habitaciones);
     free(hotel);
     hotel = NULL;
 
     return 0;
 }
+
+/* ========================================================================= */
+/* IMPLEMENTACION DE LAS FUNCIONES DE INTERFAZ Y LOGICA                      */
+/* ========================================================================= */
 
 int convertir_cantidad(const char *texto, int *cantidad)
 {
@@ -267,7 +298,6 @@ char *leer_texto_dinamico(const char *mensaje)
         printf("%s", mensaje);
     }
 
-    /* realloc agranda el texto de a un caracter. Es simple para practicar memoria dinamica. */
     while ((caracter = getchar()) != '\n' && caracter != EOF) {
         temporal = realloc(texto, (size_t)largo + 2U);
         if (temporal == NULL) {
@@ -375,7 +405,6 @@ void hacer_checkin(struct habitacion *hotel, int cantidad)
         return;
     }
 
-    /* Si hubiera un nombre anterior, lo liberamos antes de guardar el nuevo. */
     free(hotel[posicion].huesped.nombre);
     hotel[posicion].huesped.nombre = nombre;
     hotel[posicion].huesped.tipo_documento = tipo_documento;
@@ -436,7 +465,6 @@ void hacer_checkout(struct habitacion *hotel, int cantidad)
         printf("No se pudo generar el ticket, pero se hara el check-out.\n");
     }
 
-    /* Al liberar la habitacion tambien liberamos la memoria del nombre. */
     free(hotel[posicion].huesped.nombre);
     hotel[posicion].huesped.nombre = NULL;
     hotel[posicion].huesped.tipo_documento = DNI;
