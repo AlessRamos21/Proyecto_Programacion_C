@@ -1,144 +1,324 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include "archivos.h"
 
-#define MAX_PASAPORTE 16
-#define DNI 1
+const char *texto_tipo(int tipo);
+const char *texto_estado(unsigned int ocupada);
+const char *texto_limpieza(unsigned int limpieza);
 
-/* --- ESTRUCTURAS COMPARTIDAS CON MAIN.C --- */
-struct estado_habitacion {
-    unsigned int ocupada : 1;
-    unsigned int limpieza : 1;
-};
+#define ARCHIVO_BASE_DATOS "base_datos_hotel.bin"
 
-union documento_identidad {
-    long int dni;
-    char pasaporte[MAX_PASAPORTE];
-};
-
-struct huesped {
-    char *nombre;
-    int tipo_documento;
-    union documento_identidad documento;
-};
-
-struct habitacion {
+struct habitacion_bin {
     int numero;
+    int tipo;
     int capacidad;
     float precio;
-    struct estado_habitacion estado;
-    struct huesped huesped;
+    unsigned int ocupada : 1;
+    unsigned int limpieza : 2;
+    int tipo_documento;
+    long int dni;
+    char pasaporte[MAX_PASAPORTE];
+    char nombre[128];
+    char fecha_checkin[20];
 };
 
-/* Prototipo de la funcion de busqueda (Su implementacion real vive en main.c) */
-int buscar_habitacion_por_numero(const struct habitacion *hotel, int cantidad, int numero);
-
-
-/* --- IMPLEMENTACION DE LAS FUNCIONES DE PERSISTENCIA --- */
+static void copiar_texto(char *destino, int capacidad, const char *origen);
+static char *duplicar_texto(const char *origen);
 
 int contar_habitaciones_guardadas(void)
 {
-    FILE *archivo = fopen("base_datos_hotel.txt", "r");
-    char linea[256];
-    int contador = 0;
+    FILE *archivo = NULL;
+    long tamanio = 0;
+    int cantidad = 0;
 
+    archivo = fopen(ARCHIVO_BASE_DATOS, "rb");
     if (archivo == NULL) {
-        // Si el archivo no existe, retornamos 0 para indicar un inicio limpio
         return 0;
     }
 
-    // Contamos cuantas lineas validas (habitaciones) tiene el archivo guardado
-    while (fgets(linea, sizeof(linea), archivo) != NULL) {
-        if (linea[0] != '\n' && linea[0] != '\0') {
-            contador++;
-        }
+    if (fseek(archivo, 0, SEEK_END) != 0) {
+        fclose(archivo);
+        return 0;
     }
 
+    tamanio = ftell(archivo);
     fclose(archivo);
-    return contador;
+
+    if (tamanio <= 0) {
+        return 0;
+    }
+
+    cantidad = (int)(tamanio / (long)sizeof(struct habitacion_bin));
+    return cantidad;
 }
 
 void guardar_base_datos(const struct habitacion *hotel, int cantidad)
 {
-    FILE *archivo = fopen("base_datos_hotel.txt", "w");
+    FILE *archivo = NULL;
     int i = 0;
 
+    if (hotel == NULL || cantidad <= 0) {
+        return;
+    }
+
+    /* ARCHIVO BINARIO: escritura de la base de datos en disco */
+    archivo = fopen(ARCHIVO_BASE_DATOS, "wb");
     if (archivo == NULL) {
-        printf("[ERROR]: No se pudo escribir la base de datos fisica.\n");
+        printf("[ERROR]: No se pudo guardar la base de datos binaria.\n");
         return;
     }
 
     for (i = 0; i < cantidad; i++) {
-        fprintf(archivo, "%d;%d;%.2f;%u;%u;%d;%ld;%s;%s\n",
-                hotel[i].numero,
-                hotel[i].capacidad,
-                hotel[i].precio,
-                hotel[i].estado.ocupada,
-                hotel[i].estado.limpieza,
-                hotel[i].huesped.tipo_documento,
-                hotel[i].huesped.documento.dni,
-                hotel[i].huesped.documento.pasaporte[0] != '\0' ? hotel[i].huesped.documento.pasaporte : "-",
-                hotel[i].huesped.nombre != NULL ? hotel[i].huesped.nombre : "-");
-    }
+        struct habitacion_bin registro;
 
-    fclose(archivo);
-    printf("[SISTEMA]: Base de datos guardada correctamente en 'base_datos_hotel.txt'.\n");
-}
+        memset(&registro, 0, sizeof(registro));
+        registro.numero = hotel[i].numero;
+        registro.tipo = hotel[i].tipo;
+        registro.capacidad = hotel[i].capacidad;
+        registro.precio = hotel[i].precio;
+        registro.ocupada = hotel[i].estado.ocupada;
+        registro.limpieza = hotel[i].estado.limpieza;
+        registro.tipo_documento = hotel[i].huesped.tipo_documento;
 
-void cargar_base_datos(struct habitacion *hotel, int cantidad)
-{
-    FILE *archivo = fopen("base_datos_hotel.txt", "r");
-    char linea[256];
+        if (hotel[i].huesped.tipo_documento == DNI) {
+            registro.dni = hotel[i].huesped.documento.dni;
+            registro.pasaporte[0] = '\0';
+        } else {
+            registro.dni = 0L;
+            copiar_texto(registro.pasaporte,
+                         MAX_PASAPORTE,
+                         hotel[i].huesped.documento.pasaporte);
+        }
 
-    if (archivo == NULL) {
-        printf("[SISTEMA]: No se detecto archivo previo. Iniciando base de datos limpia.\n");
-        return;
-    }
+        if (hotel[i].huesped.nombre != NULL && hotel[i].huesped.nombre[0] != '\0') {
+            copiar_texto(registro.nombre, 128, hotel[i].huesped.nombre);
+        } else {
+            copiar_texto(registro.nombre, 128, "-");
+        }
 
-    while (fgets(linea, sizeof(linea), archivo) != NULL) {
-        int num = 0, cap = 0, ocup = 0, limp = 0, tipo_doc = 0;
-        float prec = 0.0f;
-        long int temp_dni = 0L;
-        char temp_pas[64] = "";
-        char temp_nom[128] = "";
+        if (hotel[i].huesped.fecha_checkin[0] != '\0') {
+            copiar_texto(registro.fecha_checkin, 20, hotel[i].huesped.fecha_checkin);
+        } else {
+            copiar_texto(registro.fecha_checkin, 20, "-");
+        }
 
-        int leidos = sscanf(linea, "%d;%d;%f;%d;%d;%d;%ld;%[^;];%[^\n]",
-                            &num, &cap, &prec, &ocup, &limp, &tipo_doc, &temp_dni, temp_pas, temp_nom);
-
-        if (leidos == 9) {
-            int pos = buscar_habitacion_por_numero(hotel, cantidad, num);
-            if (pos != -1) {
-                hotel[pos].capacidad = cap;
-                hotel[pos].precio = prec;
-                hotel[pos].estado.ocupada = (unsigned int)ocup;
-                hotel[pos].estado.limpieza = (unsigned int)limp;
-                hotel[pos].huesped.tipo_documento = tipo_doc;
-
-                if (tipo_doc == DNI) {
-                    hotel[pos].huesped.documento.dni = temp_dni;
-                    hotel[pos].huesped.documento.pasaporte[0] = '\0';
-                } else {
-                    if (strcmp(temp_pas, "-") != 0) {
-                        strncpy(hotel[pos].huesped.documento.pasaporte, temp_pas, MAX_PASAPORTE - 1);
-                        hotel[pos].huesped.documento.pasaporte[MAX_PASAPORTE - 1] = '\0';
-                    } else {
-                        hotel[pos].huesped.documento.pasaporte[0] = '\0';
-                    }
-                }
-
-                free(hotel[pos].huesped.nombre);
-                hotel[pos].huesped.nombre = NULL;
-
-                if (strcmp(temp_nom, "-") != 0) {
-                    hotel[pos].huesped.nombre = (char *)malloc(strlen(temp_nom) + 1);
-                    if (hotel[pos].huesped.nombre != NULL) {
-                        strcpy(hotel[pos].huesped.nombre, temp_nom);
-                    }
-                }
-            }
+        if (fwrite(&registro, sizeof(registro), 1, archivo) != 1) {
+            printf("[ERROR]: No se pudo escribir una habitacion en el archivo.\n");
+            fclose(archivo);
+            return;
         }
     }
 
     fclose(archivo);
-    printf("[SISTEMA]: Historial y estados de habitaciones sincronizados con exito.\n");
+    printf("[SISTEMA]: Base de datos guardada en '%s'.\n", ARCHIVO_BASE_DATOS);
 }
+
+void cargar_base_datos(struct habitacion *hotel, int cantidad)
+{
+    FILE *archivo = NULL;
+    int i = 0;
+
+    if (hotel == NULL || cantidad <= 0) {
+        return;
+    }
+
+    /* ARCHIVO BINARIO: lectura de la base de datos desde disco */
+    archivo = fopen(ARCHIVO_BASE_DATOS, "rb");
+    if (archivo == NULL) {
+        printf("[SISTEMA]: No hay base binaria previa. Inicio limpio.\n");
+        return;
+    }
+
+    for (i = 0; i < cantidad; i++) {
+        struct habitacion_bin registro;
+
+        if (fread(&registro, sizeof(registro), 1, archivo) != 1) {
+            break;
+        }
+
+        hotel[i].numero = registro.numero;
+        hotel[i].tipo = registro.tipo;
+        hotel[i].capacidad = registro.capacidad;
+        hotel[i].precio = registro.precio;
+        hotel[i].estado.ocupada = registro.ocupada;
+        hotel[i].estado.limpieza = registro.limpieza;
+        hotel[i].huesped.tipo_documento = registro.tipo_documento;
+
+        if (registro.tipo_documento == DNI) {
+            hotel[i].huesped.documento.dni = registro.dni;
+            hotel[i].huesped.documento.pasaporte[0] = '\0';
+        } else {
+            hotel[i].huesped.documento.dni = 0L;
+            copiar_texto(hotel[i].huesped.documento.pasaporte,
+                         MAX_PASAPORTE,
+                         registro.pasaporte);
+        }
+
+        free(hotel[i].huesped.nombre);
+        hotel[i].huesped.nombre = NULL;
+
+        if (strcmp(registro.nombre, "-") != 0) {
+            hotel[i].huesped.nombre = duplicar_texto(registro.nombre);
+            if (hotel[i].huesped.nombre == NULL) {
+                printf("[ERROR]: No se pudo reservar memoria para un nombre.\n");
+            }
+        }
+
+        if (strcmp(registro.fecha_checkin, "-") != 0) {
+            copiar_texto(hotel[i].huesped.fecha_checkin, 20, registro.fecha_checkin);
+        } else {
+            hotel[i].huesped.fecha_checkin[0] = '\0';
+        }
+    }
+
+    fclose(archivo);
+    printf("[SISTEMA]: Base de datos binaria cargada.\n");
+}
+
+void generar_reporte(const struct habitacion *hotel, int cantidad, char *nombre_out, int tam_out)
+{
+    FILE *archivo = NULL;
+    time_t ahora = time(NULL);
+    struct tm *fecha = localtime(&ahora);
+    char nombre_archivo[64];
+    char fecha_texto[20];
+    int ocupadas = 0;
+    int libres = 0;
+    int sucias = 0;
+    int mantenimiento = 0;
+    int i = 0;
+    float porcentaje_ocupadas = 0.0f;
+    float porcentaje_libres = 0.0f;
+
+    if (hotel == NULL || cantidad <= 0 || fecha == NULL) {
+        return;
+    }
+
+    strftime(nombre_archivo, sizeof(nombre_archivo), "reporte_%Y%m%d_%H%M%S.txt", fecha);
+    strftime(fecha_texto, sizeof(fecha_texto), "%d/%m/%Y %H:%M:%S", fecha);
+
+    for (i = 0; i < cantidad; i++) {
+        if (hotel[i].estado.ocupada == OCUPADA) {
+            ocupadas++;
+        } else {
+            libres++;
+        }
+
+        if (hotel[i].estado.limpieza == SUCIA) {
+            sucias++;
+        }
+
+        if (hotel[i].estado.limpieza == MANTENIMIENTO) {
+            mantenimiento++;
+        }
+    }
+
+    porcentaje_ocupadas = ((float)ocupadas * 100.0f) / (float)cantidad;
+    porcentaje_libres = ((float)libres * 100.0f) / (float)cantidad;
+
+    /* ARCHIVO DE TEXTO: generacion del reporte en formato legible */
+    archivo = fopen(nombre_archivo, "w");
+    if (archivo == NULL) {
+        printf("[ERROR]: No se pudo generar el reporte.\n");
+        return;
+    }
+
+    fprintf(archivo, "REPORTE GENERAL DEL HOTEL\n");
+    fprintf(archivo, "Fecha: %s\n", fecha_texto);
+    fprintf(archivo, "==========================================\n");
+    fprintf(archivo, "Total de habitaciones: %d\n", cantidad);
+    fprintf(archivo, "Habitaciones ocupadas: %d  (%.2f%%)\n", ocupadas, porcentaje_ocupadas);
+    fprintf(archivo, "Habitaciones libres:   %d  (%.2f%%)\n", libres, porcentaje_libres);
+    fprintf(archivo, "Habitaciones sucias:   %d\n", sucias);
+    fprintf(archivo, "En mantenimiento:      %d\n", mantenimiento);
+    fprintf(archivo, "------------------------------------------\n");
+    fprintf(archivo, "DETALLE POR HABITACION:\n");
+
+    for (i = 0; i < cantidad; i++) {
+        fprintf(archivo, "[%d] [%s] [%.2f] [%s] [%s] [%s] [%s]\n",
+                hotel[i].numero,
+                texto_tipo(hotel[i].tipo),
+                hotel[i].precio,
+                texto_estado(hotel[i].estado.ocupada),
+                texto_limpieza(hotel[i].estado.limpieza),
+                hotel[i].huesped.nombre != NULL ? hotel[i].huesped.nombre : "-",
+                hotel[i].huesped.fecha_checkin[0] != '\0' ? hotel[i].huesped.fecha_checkin : "-");
+    }
+
+    fprintf(archivo, "==========================================\n");
+
+    if (nombre_out != NULL && tam_out > 0) {
+        strncpy(nombre_out, nombre_archivo, (size_t)tam_out - 1);
+        nombre_out[tam_out - 1] = '\0';
+    }
+
+    fclose(archivo);
+    printf("[SISTEMA]: Reporte generado en '%s'.\n", nombre_archivo);
+}
+
+void ver_ultimo_reporte(const char *nombre_archivo)
+{
+    FILE *archivo = NULL;
+    char linea[256];
+
+    /* ARCHIVO DE TEXTO: lectura del reporte generado */
+    if (nombre_archivo == NULL || nombre_archivo[0] == '\0') {
+        printf("[SISTEMA]: No hay reportes generados todavia.\n");
+        printf("           Use la opcion 7 para generar uno.\n");
+        return;
+    }
+
+    archivo = fopen(nombre_archivo, "r");
+    if (archivo == NULL) {
+        printf("[SISTEMA]: No se encontro el archivo '%s'.\n",
+               nombre_archivo);
+        printf("           Use la opcion 7 para generar un nuevo reporte.\n");
+        return;
+    }
+
+    printf("\n========================================\n");
+    printf("  CONTENIDO DEL REPORTE: %s\n", nombre_archivo);
+    printf("========================================\n");
+
+    while (fgets(linea, sizeof(linea), archivo) != NULL) {
+        printf("%s", linea);
+    }
+
+    fclose(archivo);
+}
+
+static void copiar_texto(char *destino, int capacidad, const char *origen)
+{
+    if (destino == NULL || capacidad <= 0) {
+        return;
+    }
+
+    if (origen == NULL) {
+        origen = "";
+    }
+
+    strncpy(destino, origen, (size_t)capacidad - 1U);
+    destino[capacidad - 1] = '\0';
+}
+
+static char *duplicar_texto(const char *origen)
+{
+    char *copia = NULL;
+    size_t largo = 0U;
+
+    if (origen == NULL) {
+        return NULL;
+    }
+
+    largo = strlen(origen);
+    copia = (char *)malloc(largo + 1U);
+    if (copia == NULL) {
+        return NULL;
+    }
+
+    strcpy(copia, origen);
+    return copia;
+}
+
