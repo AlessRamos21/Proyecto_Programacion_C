@@ -9,6 +9,7 @@
 #define DNI 1
 #define PASAPORTE 2
 #define MAX_PASAPORTE 16
+#define MAX_HUESPEDES_POR_HAB 4
 #define PRECIO_BASE 10000.0f
 #define SIMPLE 1
 #define DOBLE 2
@@ -40,7 +41,8 @@ struct habitacion {
     int capacidad;
     float precio;
     struct estado_habitacion estado;
-    struct huesped huesped;
+    struct huesped huespedes[MAX_HUESPEDES_POR_HAB];
+    int cantidad_huespedes;
 };
 
 void guardar_base_datos(const struct habitacion *hotel, int cantidad);

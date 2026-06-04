@@ -17,11 +17,14 @@ struct habitacion_bin {
     float precio;
     unsigned int ocupada : 1;
     unsigned int limpieza : 2;
-    int tipo_documento;
-    long int dni;
-    char pasaporte[MAX_PASAPORTE];
-    char nombre[128];
-    char fecha_checkin[20];
+    struct {
+        int tipo_documento;
+        long int dni;
+        char pasaporte[MAX_PASAPORTE];
+        char nombre[128];
+        char fecha_checkin[20];
+    } huespedes[MAX_HUESPEDES_POR_HAB];
+    int cantidad_huespedes;
 };
 
 static void copiar_texto(char *destino, int capacidad, const char *origen);
@@ -58,6 +61,7 @@ void guardar_base_datos(const struct habitacion *hotel, int cantidad)
 {
     FILE *archivo = NULL;
     int i = 0;
+    int j = 0;
 
     if (hotel == NULL || cantidad <= 0) {
         return;
@@ -80,28 +84,32 @@ void guardar_base_datos(const struct habitacion *hotel, int cantidad)
         registro.precio = hotel[i].precio;
         registro.ocupada = hotel[i].estado.ocupada;
         registro.limpieza = hotel[i].estado.limpieza;
-        registro.tipo_documento = hotel[i].huesped.tipo_documento;
+        registro.cantidad_huespedes = hotel[i].cantidad_huespedes;
 
-        if (hotel[i].huesped.tipo_documento == DNI) {
-            registro.dni = hotel[i].huesped.documento.dni;
-            registro.pasaporte[0] = '\0';
-        } else {
-            registro.dni = 0L;
-            copiar_texto(registro.pasaporte,
-                         MAX_PASAPORTE,
-                         hotel[i].huesped.documento.pasaporte);
-        }
+        for (j = 0; j < MAX_HUESPEDES_POR_HAB; j++) {
+            registro.huespedes[j].tipo_documento = hotel[i].huespedes[j].tipo_documento;
 
-        if (hotel[i].huesped.nombre != NULL && hotel[i].huesped.nombre[0] != '\0') {
-            copiar_texto(registro.nombre, 128, hotel[i].huesped.nombre);
-        } else {
-            copiar_texto(registro.nombre, 128, "-");
-        }
+            if (hotel[i].huespedes[j].tipo_documento == DNI) {
+                registro.huespedes[j].dni = hotel[i].huespedes[j].documento.dni;
+                registro.huespedes[j].pasaporte[0] = '\0';
+            } else {
+                registro.huespedes[j].dni = 0L;
+                copiar_texto(registro.huespedes[j].pasaporte,
+                             MAX_PASAPORTE,
+                             hotel[i].huespedes[j].documento.pasaporte);
+            }
 
-        if (hotel[i].huesped.fecha_checkin[0] != '\0') {
-            copiar_texto(registro.fecha_checkin, 20, hotel[i].huesped.fecha_checkin);
-        } else {
-            copiar_texto(registro.fecha_checkin, 20, "-");
+            if (hotel[i].huespedes[j].nombre != NULL && hotel[i].huespedes[j].nombre[0] != '\0') {
+                copiar_texto(registro.huespedes[j].nombre, 128, hotel[i].huespedes[j].nombre);
+            } else {
+                copiar_texto(registro.huespedes[j].nombre, 128, "-");
+            }
+
+            if (hotel[i].huespedes[j].fecha_checkin[0] != '\0') {
+                copiar_texto(registro.huespedes[j].fecha_checkin, 20, hotel[i].huespedes[j].fecha_checkin);
+            } else {
+                copiar_texto(registro.huespedes[j].fecha_checkin, 20, "-");
+            }
         }
 
         if (fwrite(&registro, sizeof(registro), 1, archivo) != 1) {
@@ -119,6 +127,7 @@ void cargar_base_datos(struct habitacion *hotel, int cantidad)
 {
     FILE *archivo = NULL;
     int i = 0;
+    int j = 0;
 
     if (hotel == NULL || cantidad <= 0) {
         return;
@@ -144,33 +153,51 @@ void cargar_base_datos(struct habitacion *hotel, int cantidad)
         hotel[i].precio = registro.precio;
         hotel[i].estado.ocupada = registro.ocupada;
         hotel[i].estado.limpieza = registro.limpieza;
-        hotel[i].huesped.tipo_documento = registro.tipo_documento;
+        hotel[i].cantidad_huespedes = registro.cantidad_huespedes;
 
-        if (registro.tipo_documento == DNI) {
-            hotel[i].huesped.documento.dni = registro.dni;
-            hotel[i].huesped.documento.pasaporte[0] = '\0';
-        } else {
-            hotel[i].huesped.documento.dni = 0L;
-            copiar_texto(hotel[i].huesped.documento.pasaporte,
-                         MAX_PASAPORTE,
-                         registro.pasaporte);
+        if (hotel[i].cantidad_huespedes < 0) {
+            hotel[i].cantidad_huespedes = 0;
         }
 
-        free(hotel[i].huesped.nombre);
-        hotel[i].huesped.nombre = NULL;
+        if (hotel[i].cantidad_huespedes > hotel[i].capacidad) {
+            hotel[i].cantidad_huespedes = hotel[i].capacidad;
+        }
 
-        if (strcmp(registro.nombre, "-") != 0) {
-            hotel[i].huesped.nombre = duplicar_texto(registro.nombre);
-            if (hotel[i].huesped.nombre == NULL) {
-                printf("[ERROR]: No se pudo reservar memoria para un nombre.\n");
+        if (hotel[i].cantidad_huespedes > MAX_HUESPEDES_POR_HAB) {
+            hotel[i].cantidad_huespedes = MAX_HUESPEDES_POR_HAB;
+        }
+
+        for (j = 0; j < MAX_HUESPEDES_POR_HAB; j++) {
+            hotel[i].huespedes[j].tipo_documento = registro.huespedes[j].tipo_documento;
+
+            if (registro.huespedes[j].tipo_documento == DNI) {
+                hotel[i].huespedes[j].documento.dni = registro.huespedes[j].dni;
+                hotel[i].huespedes[j].documento.pasaporte[0] = '\0';
+            } else {
+                hotel[i].huespedes[j].documento.dni = 0L;
+                copiar_texto(hotel[i].huespedes[j].documento.pasaporte,
+                             MAX_PASAPORTE,
+                             registro.huespedes[j].pasaporte);
+            }
+
+            free(hotel[i].huespedes[j].nombre);
+            hotel[i].huespedes[j].nombre = NULL;
+
+            if (j < hotel[i].cantidad_huespedes && strcmp(registro.huespedes[j].nombre, "-") != 0) {
+                hotel[i].huespedes[j].nombre = duplicar_texto(registro.huespedes[j].nombre);
+                if (hotel[i].huespedes[j].nombre == NULL) {
+                    printf("[ERROR]: No se pudo reservar memoria para un nombre.\n");
+                }
+            }
+
+            if (j < hotel[i].cantidad_huespedes && strcmp(registro.huespedes[j].fecha_checkin, "-") != 0) {
+                copiar_texto(hotel[i].huespedes[j].fecha_checkin, 20, registro.huespedes[j].fecha_checkin);
+            } else {
+                hotel[i].huespedes[j].fecha_checkin[0] = '\0';
             }
         }
 
-        if (strcmp(registro.fecha_checkin, "-") != 0) {
-            copiar_texto(hotel[i].huesped.fecha_checkin, 20, registro.fecha_checkin);
-        } else {
-            hotel[i].huesped.fecha_checkin[0] = '\0';
-        }
+        hotel[i].estado.ocupada = hotel[i].cantidad_huespedes > 0 ? OCUPADA : LIBRE;
     }
 
     fclose(archivo);
@@ -237,14 +264,25 @@ void generar_reporte(const struct habitacion *hotel, int cantidad, char *nombre_
     fprintf(archivo, "DETALLE POR HABITACION:\n");
 
     for (i = 0; i < cantidad; i++) {
+        const char *nombre_mostrar = "-";
+        const char *fecha_mostrar = "-";
+
+        if (hotel[i].cantidad_huespedes > 0 && hotel[i].huespedes[0].nombre != NULL) {
+            nombre_mostrar = hotel[i].huespedes[0].nombre;
+        }
+
+        if (hotel[i].cantidad_huespedes > 0 && hotel[i].huespedes[0].fecha_checkin[0] != '\0') {
+            fecha_mostrar = hotel[i].huespedes[0].fecha_checkin;
+        }
+
         fprintf(archivo, "[%d] [%s] [%.2f] [%s] [%s] [%s] [%s]\n",
                 hotel[i].numero,
                 texto_tipo(hotel[i].tipo),
                 hotel[i].precio,
                 texto_estado(hotel[i].estado.ocupada),
                 texto_limpieza(hotel[i].estado.limpieza),
-                hotel[i].huesped.nombre != NULL ? hotel[i].huesped.nombre : "-",
-                hotel[i].huesped.fecha_checkin[0] != '\0' ? hotel[i].huesped.fecha_checkin : "-");
+                nombre_mostrar,
+                fecha_mostrar);
     }
 
     fprintf(archivo, "==========================================\n");
@@ -266,7 +304,7 @@ void ver_ultimo_reporte(const char *nombre_archivo)
     /* ARCHIVO DE TEXTO: lectura del reporte generado */
     if (nombre_archivo == NULL || nombre_archivo[0] == '\0') {
         printf("[SISTEMA]: No hay reportes generados todavia.\n");
-        printf("           Use la opcion 7 para generar uno.\n");
+        printf("           Use la opcion 6 para generar uno.\n");
         return;
     }
 
@@ -274,7 +312,7 @@ void ver_ultimo_reporte(const char *nombre_archivo)
     if (archivo == NULL) {
         printf("[SISTEMA]: No se encontro el archivo '%s'.\n",
                nombre_archivo);
-        printf("           Use la opcion 7 para generar un nuevo reporte.\n");
+        printf("           Use la opcion 6 para generar un nuevo reporte.\n");
         return;
     }
 

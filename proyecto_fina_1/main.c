@@ -21,9 +21,7 @@ void buscar_huesped_por_documento(const struct habitacion *hotel, int cantidad);
 void modificar_huesped(struct habitacion *hotel, int cantidad);
 void cambiar_limpieza_menu(struct habitacion *hotel, int cantidad);
 int cargar_documento(struct huesped *huesped, const char *mensaje_dni, const char *mensaje_pasaporte);
-void ordenar_por_precio(struct habitacion *hotel, int cantidad);
-void intercambiar_habitaciones(struct habitacion *primera, struct habitacion *segunda);
-int generar_ticket_checkout(const struct habitacion *habitacion);
+int generar_ticket_checkout(const struct habitacion *habitacion, const struct huesped *huesped);
 void mostrar_documento(const struct huesped *huesped);
 void mostrar_datos_huesped(const struct habitacion *habitacion);
 void mostrar_menu(void);
@@ -37,9 +35,11 @@ int main(void)
     int opcion = -1;
     char ultimo_reporte[64] = "";
 
-    printf("========================================\n");
-    printf("     INICIALIZACION DEL SISTEMA\n");
-    printf("========================================\n");
+    printf("\n");
+    printf("  ==========================================\n");
+    printf("       SISTEMA DE GESTION HOTELERA\n");
+    printf("  ==========================================\n");
+    printf("\n");
 
     cantidad_habitaciones = contar_habitaciones_guardadas();
 
@@ -89,27 +89,22 @@ int main(void)
                 break;
 
             case 5:
-                ordenar_por_precio(hotel, cantidad_habitaciones);
-                printf("Habitaciones ordenadas por precio.\n");
-                break;
-
-            case 6:
                 cambiar_limpieza_menu(hotel, cantidad_habitaciones);
                 break;
 
-            case 7:
+            case 6:
                 generar_reporte(hotel, cantidad_habitaciones, ultimo_reporte, sizeof(ultimo_reporte));
                 break;
 
-            case 8:
+            case 7:
                 buscar_huesped_por_documento(hotel, cantidad_habitaciones);
                 break;
 
-            case 9:
+            case 8:
                 modificar_huesped(hotel, cantidad_habitaciones);
                 break;
 
-            case 10:
+            case 9:
                 ver_ultimo_reporte(ultimo_reporte);
                 break;
 
@@ -138,70 +133,137 @@ int main(void)
 void inicializar_hotel(struct habitacion *hotel, int cantidad)
 {
     int indice = 0;
+    int huesped_indice = 0;
+    int limite_simple = 0;
+    int limite_doble = 0;
 
     if (hotel == NULL) {
         return;
     }
 
+    limite_simple = cantidad * 40 / 100;
+    limite_doble = cantidad * 80 / 100;
+
+    if (cantidad == 1) {
+        limite_simple = 1;
+        limite_doble = 1;
+    } else if (cantidad == 2) {
+        limite_simple = 1;
+        limite_doble = 2;
+    } else {
+        if (limite_simple < 1) {
+            limite_simple = 1;
+        }
+
+        if (limite_doble <= limite_simple) {
+            limite_doble = limite_simple + 1;
+        }
+
+        if (limite_doble >= cantidad) {
+            limite_doble = cantidad - 1;
+        }
+    }
+
     for (indice = 0; indice < cantidad; indice++) {
         hotel[indice].numero = 101 + indice;
 
-        if (indice < 2) {
+        if (indice < limite_simple) {
             hotel[indice].tipo = SIMPLE;
             hotel[indice].capacidad = 1;
-        } else if (indice < 5) {
+            hotel[indice].precio = PRECIO_BASE;
+        } else if (indice < limite_doble) {
             hotel[indice].tipo = DOBLE;
             hotel[indice].capacidad = 2;
+            hotel[indice].precio = PRECIO_BASE * 1.5f;
         } else {
             hotel[indice].tipo = SUITE;
             hotel[indice].capacidad = 4;
+            hotel[indice].precio = PRECIO_BASE * 2.5f;
         }
 
-        hotel[indice].precio = PRECIO_BASE + ((float)indice * 2500.0f);
         hotel[indice].estado.ocupada = LIBRE;
         hotel[indice].estado.limpieza = LIMPIA;
-        hotel[indice].huesped.nombre = NULL;
-        hotel[indice].huesped.tipo_documento = DNI;
-        hotel[indice].huesped.documento.dni = 0L;
-        hotel[indice].huesped.fecha_checkin[0] = '\0';
+        hotel[indice].cantidad_huespedes = 0;
+
+        for (huesped_indice = 0; huesped_indice < MAX_HUESPEDES_POR_HAB; huesped_indice++) {
+            hotel[indice].huespedes[huesped_indice].nombre = NULL;
+            hotel[indice].huespedes[huesped_indice].tipo_documento = DNI;
+            hotel[indice].huespedes[huesped_indice].documento.dni = 0L;
+            hotel[indice].huespedes[huesped_indice].fecha_checkin[0] = '\0';
+        }
     }
 }
 
 void liberar_hotel(struct habitacion *hotel, int cantidad)
 {
     int indice = 0;
+    int huesped_indice = 0;
 
     if (hotel == NULL) {
         return;
     }
 
     for (indice = 0; indice < cantidad; indice++) {
-        /* MEMORIA DINAMICA: libera la memoria del nombre de cada huesped */
-        free(hotel[indice].huesped.nombre);
-        hotel[indice].huesped.nombre = NULL;
+        for (huesped_indice = 0; huesped_indice < MAX_HUESPEDES_POR_HAB; huesped_indice++) {
+            /* MEMORIA DINAMICA: libera la memoria del nombre de cada huesped */
+            free(hotel[indice].huespedes[huesped_indice].nombre);
+            hotel[indice].huespedes[huesped_indice].nombre = NULL;
+        }
     }
 }
 
 void listar_habitaciones(const struct habitacion *hotel, int cantidad)
 {
     int indice = 0;
+    char estado_ocupacion[32];
+    char huesped_mostrar[160];
 
     if (hotel == NULL) {
         return;
     }
 
-    printf("\n%-8s %-10s %-10s %-10s %-12s %-20s %s\n",
+    printf("\n%-8s %-10s %-10s %-16s %-12s %-20s %s\n",
            "Numero", "Tipo", "Precio", "Estado", "Limpieza", "Check-in", "Huesped");
+    printf("------------------------------------------------------------------------------------------\n");
 
     for (indice = 0; indice < cantidad; indice++) {
-        printf("%-8d %-10s %-10.2f %-10s %-12s %-20s %s\n",
+        if (hotel[indice].cantidad_huespedes == 0) {
+            snprintf(estado_ocupacion, sizeof(estado_ocupacion), "Libre (0/%d)", hotel[indice].capacidad);
+            snprintf(huesped_mostrar, sizeof(huesped_mostrar), "-");
+        } else if (hotel[indice].cantidad_huespedes >= hotel[indice].capacidad) {
+            snprintf(estado_ocupacion, sizeof(estado_ocupacion), "Llena (%d/%d)",
+                     hotel[indice].cantidad_huespedes,
+                     hotel[indice].capacidad);
+            snprintf(huesped_mostrar,
+                     sizeof(huesped_mostrar),
+                     "%s%s",
+                     hotel[indice].huespedes[0].nombre != NULL ? hotel[indice].huespedes[0].nombre : "-",
+                     hotel[indice].cantidad_huespedes > 1 ? "..." : "");
+        } else {
+            snprintf(estado_ocupacion, sizeof(estado_ocupacion), "Parcial (%d/%d)",
+                     hotel[indice].cantidad_huespedes,
+                     hotel[indice].capacidad);
+            snprintf(huesped_mostrar,
+                     sizeof(huesped_mostrar),
+                     "%s%s",
+                     hotel[indice].huespedes[0].nombre != NULL ? hotel[indice].huespedes[0].nombre : "-",
+                     hotel[indice].cantidad_huespedes > 1 ? "..." : "");
+        }
+
+        printf("%-8d %-10s %-10.2f %-16s %-12s %-20s %s\n",
                hotel[indice].numero,
                texto_tipo(hotel[indice].tipo),
                hotel[indice].precio,
-               texto_estado(hotel[indice].estado.ocupada),
+               estado_ocupacion,
                texto_limpieza(hotel[indice].estado.limpieza),
-               hotel[indice].huesped.fecha_checkin[0] != '\0' ? hotel[indice].huesped.fecha_checkin : "-",
-               hotel[indice].huesped.nombre != NULL ? hotel[indice].huesped.nombre : "-");
+               hotel[indice].cantidad_huespedes > 0 && hotel[indice].huespedes[0].fecha_checkin[0] != '\0'
+                   ? hotel[indice].huespedes[0].fecha_checkin
+                   : "-",
+               huesped_mostrar);
+
+        if (hotel[indice].cantidad_huespedes > 0) {
+            printf("------------------------------------------------------------------------------------------\n");
+        }
     }
 }
 
@@ -340,16 +402,18 @@ int buscar_habitacion_por_numero(const struct habitacion *hotel, int cantidad, i
 int buscar_huesped_por_nombre(const struct habitacion *hotel, int cantidad, const char *nombre)
 {
     int indice = 0;
+    int huesped_indice = 0;
 
     if (hotel == NULL || nombre == NULL) {
         return -1;
     }
 
     for (indice = 0; indice < cantidad; indice++) {
-        if (hotel[indice].estado.ocupada == OCUPADA &&
-            hotel[indice].huesped.nombre != NULL &&
-            strcmp(hotel[indice].huesped.nombre, nombre) == 0) {
-            return indice;
+        for (huesped_indice = 0; huesped_indice < hotel[indice].cantidad_huespedes; huesped_indice++) {
+            if (hotel[indice].huespedes[huesped_indice].nombre != NULL &&
+                strcmp(hotel[indice].huespedes[huesped_indice].nombre, nombre) == 0) {
+                return indice;
+            }
         }
     }
 
@@ -360,15 +424,18 @@ void hacer_checkin(struct habitacion *hotel, int cantidad)
 {
     int numero = 0;
     int posicion = -1;
+    int nuevo_indice = 0;
     char *nombre = NULL;
     time_t ahora = time(NULL);
     struct tm *fecha = localtime(&ahora);
+    struct huesped *nuevo_huesped = NULL;
 
     if (hotel == NULL) {
         return;
     }
 
     printf("\n--- CHECK-IN ---\n");
+    printf("----------------\n");
     printf("Puede ver el tipo de cada habitacion desde la opcion 1.\n");
 
     if (!leer_entero("Numero de habitacion: ", &numero)) {
@@ -384,8 +451,8 @@ void hacer_checkin(struct habitacion *hotel, int cantidad)
 
     printf("Tipo seleccionado: %s\n", texto_tipo(hotel[posicion].tipo));
 
-    if (hotel[posicion].estado.ocupada == OCUPADA) {
-        printf("La habitacion ya esta ocupada.\n");
+    if (hotel[posicion].cantidad_huespedes >= hotel[posicion].capacidad) {
+        printf("Habitacion llena (capacidad: %d huespedes).\n", hotel[posicion].capacidad);
         return;
     }
 
@@ -401,39 +468,54 @@ void hacer_checkin(struct habitacion *hotel, int cantidad)
         return;
     }
 
-    free(hotel[posicion].huesped.nombre);
-    hotel[posicion].huesped.nombre = nombre;
+    nuevo_indice = hotel[posicion].cantidad_huespedes;
+    nuevo_huesped = &hotel[posicion].huespedes[nuevo_indice];
 
-    if (!cargar_documento(&hotel[posicion].huesped, "DNI: ", "Pasaporte: ")) {
-        free(hotel[posicion].huesped.nombre);
-        hotel[posicion].huesped.nombre = NULL;
+    free(nuevo_huesped->nombre);
+    nuevo_huesped->nombre = nombre;
+
+    if (!cargar_documento(nuevo_huesped, "DNI: ", "Pasaporte: ")) {
+        free(nuevo_huesped->nombre);
+        nuevo_huesped->nombre = NULL;
         printf("No se pudo cargar el documento.\n");
         return;
     }
 
     if (fecha != NULL) {
-        strftime(hotel[posicion].huesped.fecha_checkin,
-                 sizeof(hotel[posicion].huesped.fecha_checkin),
+        strftime(nuevo_huesped->fecha_checkin,
+                 sizeof(nuevo_huesped->fecha_checkin),
                  "%d/%m/%Y %H:%M:%S",
                  fecha);
     } else {
-        hotel[posicion].huesped.fecha_checkin[0] = '\0';
+        nuevo_huesped->fecha_checkin[0] = '\0';
     }
 
+    hotel[posicion].cantidad_huespedes++;
     hotel[posicion].estado.ocupada = OCUPADA;
-    printf("Check-in realizado en la habitacion %d.\n", hotel[posicion].numero);
+
+    printf("\n--- CHECKIN CONFIRMADO ---\n");
+    printf("Habitacion: %d\n", hotel[posicion].numero);
+    printf("Check-in exitoso. Lugares ocupados: %d/%d\n",
+           hotel[posicion].cantidad_huespedes,
+           hotel[posicion].capacidad);
+    printf("--------------------------\n");
 }
 
 void hacer_checkout(struct habitacion *hotel, int cantidad)
 {
     int numero = 0;
     int posicion = -1;
+    int opcion_huesped = 1;
+    int indice_huesped = 0;
+    int indice_compactar = 0;
+    struct huesped *huesped_checkout = NULL;
 
     if (hotel == NULL) {
         return;
     }
 
     printf("\n--- CHECK-OUT ---\n");
+    printf("-----------------\n");
     if (!leer_entero("Numero de habitacion: ", &numero)) {
         printf("Numero invalido.\n");
         return;
@@ -445,29 +527,65 @@ void hacer_checkout(struct habitacion *hotel, int cantidad)
         return;
     }
 
-    if (hotel[posicion].estado.ocupada == LIBRE) {
+    if (hotel[posicion].cantidad_huespedes == 0) {
         printf("La habitacion ya esta libre.\n");
         return;
     }
 
-    printf("Fecha de check-in: %s\n",
-           hotel[posicion].huesped.fecha_checkin[0] != '\0' ? hotel[posicion].huesped.fecha_checkin : "-");
+    if (hotel[posicion].cantidad_huespedes > 1) {
+        printf("Huespedes alojados:\n");
+        for (indice_huesped = 0; indice_huesped < hotel[posicion].cantidad_huespedes; indice_huesped++) {
+            printf("%d. %s\n",
+                   indice_huesped + 1,
+                   hotel[posicion].huespedes[indice_huesped].nombre != NULL
+                       ? hotel[posicion].huespedes[indice_huesped].nombre
+                       : "-");
+        }
 
-    if (generar_ticket_checkout(&hotel[posicion])) {
+        if (!leer_entero_rango("Huesped que hace check-out: ",
+                               1,
+                               hotel[posicion].cantidad_huespedes,
+                               &opcion_huesped)) {
+            printf("Opcion invalida.\n");
+            return;
+        }
+    }
+
+    indice_huesped = opcion_huesped - 1;
+    huesped_checkout = &hotel[posicion].huespedes[indice_huesped];
+
+    printf("Fecha de check-in: %s\n",
+           huesped_checkout->fecha_checkin[0] != '\0' ? huesped_checkout->fecha_checkin : "-");
+
+    if (generar_ticket_checkout(&hotel[posicion], huesped_checkout)) {
         printf("Ticket generado correctamente.\n");
     } else {
         printf("No se pudo generar el ticket, pero se hara el check-out.\n");
     }
 
-    free(hotel[posicion].huesped.nombre);
-    hotel[posicion].huesped.nombre = NULL;
-    hotel[posicion].huesped.tipo_documento = DNI;
-    hotel[posicion].huesped.documento.dni = 0L;
-    hotel[posicion].huesped.fecha_checkin[0] = '\0';
-    hotel[posicion].estado.ocupada = LIBRE;
-    hotel[posicion].estado.limpieza = SUCIA;
+    free(huesped_checkout->nombre);
+    huesped_checkout->nombre = NULL;
 
-    printf("Check-out realizado. La habitacion queda sucia.\n");
+    for (indice_compactar = indice_huesped; indice_compactar < hotel[posicion].cantidad_huespedes - 1; indice_compactar++) {
+        hotel[posicion].huespedes[indice_compactar] = hotel[posicion].huespedes[indice_compactar + 1];
+    }
+
+    hotel[posicion].cantidad_huespedes--;
+    hotel[posicion].huespedes[hotel[posicion].cantidad_huespedes].nombre = NULL;
+    hotel[posicion].huespedes[hotel[posicion].cantidad_huespedes].tipo_documento = DNI;
+    hotel[posicion].huespedes[hotel[posicion].cantidad_huespedes].documento.dni = 0L;
+    hotel[posicion].huespedes[hotel[posicion].cantidad_huespedes].fecha_checkin[0] = '\0';
+
+    if (hotel[posicion].cantidad_huespedes == 0) {
+        hotel[posicion].estado.ocupada = LIBRE;
+        hotel[posicion].estado.limpieza = SUCIA;
+    } else {
+        hotel[posicion].estado.ocupada = OCUPADA;
+    }
+
+    printf("Check-out realizado. Huespedes restantes: %d/%d\n",
+           hotel[posicion].cantidad_huespedes,
+           hotel[posicion].capacidad);
 }
 
 void buscar_huesped_en_menu(const struct habitacion *hotel, int cantidad)
@@ -499,6 +617,7 @@ void buscar_huesped_por_documento(const struct habitacion *hotel, int cantidad)
     long int dni = 0L;
     char *pasaporte = NULL;
     int indice = 0;
+    int huesped_indice = 0;
     int encontrado = 0;
 
     if (hotel == NULL) {
@@ -520,11 +639,12 @@ void buscar_huesped_por_documento(const struct habitacion *hotel, int cantidad)
         }
 
         for (indice = 0; indice < cantidad; indice++) {
-            if (hotel[indice].estado.ocupada == OCUPADA &&
-                hotel[indice].huesped.tipo_documento == DNI &&
-                hotel[indice].huesped.documento.dni == dni) {
-                mostrar_datos_huesped(&hotel[indice]);
-                encontrado = 1;
+            for (huesped_indice = 0; huesped_indice < hotel[indice].cantidad_huespedes; huesped_indice++) {
+                if (hotel[indice].huespedes[huesped_indice].tipo_documento == DNI &&
+                    hotel[indice].huespedes[huesped_indice].documento.dni == dni) {
+                    mostrar_datos_huesped(&hotel[indice]);
+                    encontrado = 1;
+                }
             }
         }
     } else {
@@ -536,11 +656,12 @@ void buscar_huesped_por_documento(const struct habitacion *hotel, int cantidad)
         }
 
         for (indice = 0; indice < cantidad; indice++) {
-            if (hotel[indice].estado.ocupada == OCUPADA &&
-                hotel[indice].huesped.tipo_documento == PASAPORTE &&
-                strcmp(hotel[indice].huesped.documento.pasaporte, pasaporte) == 0) {
-                mostrar_datos_huesped(&hotel[indice]);
-                encontrado = 1;
+            for (huesped_indice = 0; huesped_indice < hotel[indice].cantidad_huespedes; huesped_indice++) {
+                if (hotel[indice].huespedes[huesped_indice].tipo_documento == PASAPORTE &&
+                    strcmp(hotel[indice].huespedes[huesped_indice].documento.pasaporte, pasaporte) == 0) {
+                    mostrar_datos_huesped(&hotel[indice]);
+                    encontrado = 1;
+                }
             }
         }
 
@@ -557,7 +678,10 @@ void modificar_huesped(struct habitacion *hotel, int cantidad)
     int numero = 0;
     int posicion = -1;
     int opcion = 0;
+    int opcion_huesped = 1;
+    int indice_huesped = 0;
     char *nuevo_texto = NULL;
+    struct huesped *huesped_modificar = NULL;
 
     if (hotel == NULL) {
         return;
@@ -570,12 +694,26 @@ void modificar_huesped(struct habitacion *hotel, int cantidad)
     }
 
     posicion = buscar_habitacion_por_numero(hotel, cantidad, numero);
-    if (posicion == -1 || hotel[posicion].estado.ocupada == LIBRE) {
+    if (posicion == -1 || hotel[posicion].cantidad_huespedes == 0) {
         printf("La habitacion no existe o no esta ocupada.\n");
         return;
     }
 
     mostrar_datos_huesped(&hotel[posicion]);
+
+    if (hotel[posicion].cantidad_huespedes > 1) {
+        if (!leer_entero_rango("Huesped a modificar: ",
+                               1,
+                               hotel[posicion].cantidad_huespedes,
+                               &opcion_huesped)) {
+            printf("Opcion invalida.\n");
+            return;
+        }
+    }
+
+    indice_huesped = opcion_huesped - 1;
+    huesped_modificar = &hotel[posicion].huespedes[indice_huesped];
+
     printf("1. Nombre\n");
     printf("2. Documento\n");
     printf("3. Cancelar\n");
@@ -593,11 +731,11 @@ void modificar_huesped(struct habitacion *hotel, int cantidad)
             return;
         }
 
-        free(hotel[posicion].huesped.nombre);
-        hotel[posicion].huesped.nombre = nuevo_texto;
+        free(huesped_modificar->nombre);
+        huesped_modificar->nombre = nuevo_texto;
         printf("Nombre actualizado.\n");
     } else if (opcion == 2) {
-        if (!cargar_documento(&hotel[posicion].huesped, "Nuevo DNI: ", "Nuevo pasaporte: ")) {
+        if (!cargar_documento(huesped_modificar, "Nuevo DNI: ", "Nuevo pasaporte: ")) {
             printf("Documento invalido.\n");
             return;
         }
@@ -688,52 +826,14 @@ void cambiar_limpieza_menu(struct habitacion *hotel, int cantidad)
            texto_limpieza(hotel[posicion].estado.limpieza));
 }
 
-void ordenar_por_precio(struct habitacion *hotel, int cantidad)
-{
-    int posicion_actual = 0;
-    int posicion_menor = 0;
-    int comparador = 0;
-
-    if (hotel == NULL) {
-        return;
-    }
-
-    for (posicion_actual = 0; posicion_actual < cantidad - 1; posicion_actual++) {
-        posicion_menor = posicion_actual;
-
-        for (comparador = posicion_actual + 1; comparador < cantidad; comparador++) {
-            if (hotel[comparador].precio < hotel[posicion_menor].precio) {
-                posicion_menor = comparador;
-            }
-        }
-
-        if (posicion_menor != posicion_actual) {
-            intercambiar_habitaciones(&hotel[posicion_actual], &hotel[posicion_menor]);
-        }
-    }
-}
-
-void intercambiar_habitaciones(struct habitacion *primera, struct habitacion *segunda)
-{
-    struct habitacion temporal;
-
-    if (primera == NULL || segunda == NULL) {
-        return;
-    }
-
-    temporal = *primera;
-    *primera = *segunda;
-    *segunda = temporal;
-}
-
-int generar_ticket_checkout(const struct habitacion *habitacion)
+int generar_ticket_checkout(const struct habitacion *habitacion, const struct huesped *huesped)
 {
     time_t ahora = time(NULL);
     struct tm *fecha = localtime(&ahora);
     char nombre_archivo[64];
     FILE *archivo = NULL;
 
-    if (habitacion == NULL || habitacion->huesped.nombre == NULL || fecha == NULL) {
+    if (habitacion == NULL || huesped == NULL || huesped->nombre == NULL || fecha == NULL) {
         return 0;
     }
 
@@ -747,11 +847,11 @@ int generar_ticket_checkout(const struct habitacion *habitacion)
     }
 
     fprintf(archivo, "Ticket de check-out\n");
-    fprintf(archivo, "Huesped: %s\n", habitacion->huesped.nombre);
+    fprintf(archivo, "Huesped: %s\n", huesped->nombre);
     fprintf(archivo, "Habitacion: %d\n", habitacion->numero);
     fprintf(archivo, "Tipo: %s\n", texto_tipo(habitacion->tipo));
     fprintf(archivo, "Fecha de check-in: %s\n",
-            habitacion->huesped.fecha_checkin[0] != '\0' ? habitacion->huesped.fecha_checkin : "-");
+            huesped->fecha_checkin[0] != '\0' ? huesped->fecha_checkin : "-");
     fprintf(archivo, "Importe: %.2f\n", habitacion->precio);
 
     return fclose(archivo) == 0;
@@ -772,17 +872,34 @@ void mostrar_documento(const struct huesped *huesped)
 
 void mostrar_datos_huesped(const struct habitacion *habitacion)
 {
+    int huesped_indice = 0;
+
     if (habitacion == NULL) {
         return;
     }
 
+    printf("\n----------------------------------------\n");
     printf("Habitacion: %d\n", habitacion->numero);
     printf("Tipo: %s\n", texto_tipo(habitacion->tipo));
     printf("Precio: %.2f\n", habitacion->precio);
-    printf("Huesped: %s\n", habitacion->huesped.nombre != NULL ? habitacion->huesped.nombre : "-");
-    printf("Fecha check-in: %s\n",
-           habitacion->huesped.fecha_checkin[0] != '\0' ? habitacion->huesped.fecha_checkin : "-");
-    mostrar_documento(&habitacion->huesped);
+    printf("Huespedes alojados: %d/%d\n",
+           habitacion->cantidad_huespedes,
+           habitacion->capacidad);
+
+    for (huesped_indice = 0; huesped_indice < habitacion->cantidad_huespedes; huesped_indice++) {
+        printf("\nHuesped %d\n", huesped_indice + 1);
+        printf("Nombre: %s\n",
+               habitacion->huespedes[huesped_indice].nombre != NULL
+                   ? habitacion->huespedes[huesped_indice].nombre
+                   : "-");
+        printf("Fecha check-in: %s\n",
+               habitacion->huespedes[huesped_indice].fecha_checkin[0] != '\0'
+                   ? habitacion->huespedes[huesped_indice].fecha_checkin
+                   : "-");
+        mostrar_documento(&habitacion->huespedes[huesped_indice]);
+    }
+
+    printf("----------------------------------------\n");
 }
 
 const char *texto_tipo(int tipo)
@@ -829,17 +946,18 @@ void mostrar_menu(void)
     printf("\n========================================\n");
     printf("        SISTEMA HOTELERO - EDA 1\n");
     printf("========================================\n");
+    printf("----------------------------------------\n");
     printf("1. Listar habitaciones\n");
     printf("2. Check-in\n");
     printf("3. Check-out\n");
     printf("4. Buscar huesped por nombre\n");
-    printf("5. Ordenar por precio\n");
-    printf("6. Cambiar limpieza/mantenimiento\n");
-    printf("7. Generar reporte general\n");
-    printf("8. Buscar huesped por documento\n");
-    printf("9. Modificar datos de huesped\n");
-    printf("10. Ver ultimo reporte generado\n");
-    printf("0. Salir\n\n");
+    printf("5. Cambiar limpieza/mantenimiento\n");
+    printf("6. Generar reporte general\n");
+    printf("7. Buscar huesped por documento\n");
+    printf("8. Modificar datos de huesped\n");
+    printf("9. Ver ultimo reporte generado\n");
+    printf("0. Salir\n");
+    printf("----------------------------------------\n\n");
 }
 
 void limpiar_pantalla(void)
