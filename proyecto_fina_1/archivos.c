@@ -67,7 +67,7 @@ void guardar_base_datos(const struct habitacion *hotel, int cantidad)
         return;
     }
 
-    /* ARCHIVO BINARIO: escritura de la base de datos en disco */
+    /* abro el archivo binario para escribir */
     archivo = fopen(ARCHIVO_BASE_DATOS, "wb");
     if (archivo == NULL) {
         printf("[ERROR]: No se pudo guardar la base de datos binaria.\n");
@@ -133,7 +133,7 @@ void cargar_base_datos(struct habitacion *hotel, int cantidad)
         return;
     }
 
-    /* ARCHIVO BINARIO: lectura de la base de datos desde disco */
+    /* abro el archivo binario para leer */
     archivo = fopen(ARCHIVO_BASE_DATOS, "rb");
     if (archivo == NULL) {
         printf("[SISTEMA]: No hay base binaria previa. Inicio limpio.\n");
@@ -245,7 +245,7 @@ void generar_reporte(const struct habitacion *hotel, int cantidad, char *nombre_
     porcentaje_ocupadas = ((float)ocupadas * 100.0f) / (float)cantidad;
     porcentaje_libres = ((float)libres * 100.0f) / (float)cantidad;
 
-    /* ARCHIVO DE TEXTO: generacion del reporte en formato legible */
+    /* creo el archivo de texto del reporte */
     archivo = fopen(nombre_archivo, "w");
     if (archivo == NULL) {
         printf("[ERROR]: No se pudo generar el reporte.\n");
@@ -301,7 +301,7 @@ void ver_ultimo_reporte(const char *nombre_archivo)
     FILE *archivo = NULL;
     char linea[256];
 
-    /* ARCHIVO DE TEXTO: lectura del reporte generado */
+    /* leo el reporte linea por linea y lo muestro */
     if (nombre_archivo == NULL || nombre_archivo[0] == '\0') {
         printf("[SISTEMA]: No hay reportes generados todavia.\n");
         printf("           Use la opcion 6 para generar uno.\n");

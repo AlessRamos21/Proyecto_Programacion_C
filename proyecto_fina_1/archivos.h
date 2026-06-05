@@ -15,13 +15,13 @@
 #define DOBLE 2
 #define SUITE 3
 
-/* CAMPOS DE BITS: ocupa solo 3 bits en lugar de dos int completos */
+/* uso campos de bits para no desperdiciar memoria */
 struct estado_habitacion {
     unsigned int ocupada : 1;
     unsigned int limpieza : 2;
 };
 
-/* UNION: comparte memoria entre DNI y pasaporte */
+/* union porque el huesped tiene DNI o pasaporte, no los dos */
 union documento_identidad {
     long int dni;
     char pasaporte[MAX_PASAPORTE];
@@ -34,7 +34,7 @@ struct huesped {
     char fecha_checkin[20];
 };
 
-/* STRUCT: tipo de dato compuesto principal del sistema hotelero */
+/* la habitacion es el dato principal de todo el sistema */
 struct habitacion {
     int numero;
     int tipo;
