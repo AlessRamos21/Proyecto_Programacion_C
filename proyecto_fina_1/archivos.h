@@ -50,8 +50,5 @@ void cargar_base_datos(struct habitacion *hotel, int cantidad);
 int contar_habitaciones_guardadas(void);
 void generar_reporte(const struct habitacion *hotel, int cantidad, char *nombre_out, int tam_out);
 void ver_ultimo_reporte(const char *nombre_archivo);
-const char *texto_tipo(int tipo);
-const char *texto_estado(unsigned int ocupada);
-const char *texto_limpieza(unsigned int limpieza);
 
 #endif

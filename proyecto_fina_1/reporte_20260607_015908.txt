@@ -1,0 +1,31 @@
+REPORTE GENERAL DEL HOTEL
+Fecha: 07/06/2026 01:59:08
+==========================================
+Total de habitaciones: 20
+Habitaciones ocupadas: 1  (5.00%)
+Habitaciones libres:   19  (95.00%)
+Habitaciones sucias:   0
+En mantenimiento:      0
+------------------------------------------
+DETALLE POR HABITACION:
+[101] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[102] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[103] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[104] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[105] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[106] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[107] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[108] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[109] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[110] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[111] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[112] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[113] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[114] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[115] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[116] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[117] [Suite] [25000.00] [Libre] [Limpia] [-] [-]
+[118] [Suite] [25000.00] [Libre] [Limpia] [-] [-]
+[119] [Suite] [25000.00] [Ocupada] [Limpia] [Pehuen Leiva] [07/06/2026 01:57:50]
+[120] [Suite] [25000.00] [Libre] [Limpia] [-] [-]
+==========================================
