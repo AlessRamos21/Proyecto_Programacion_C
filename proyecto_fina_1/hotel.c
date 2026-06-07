@@ -5,6 +5,8 @@
 #include "archivos.h"
 #include "hotel.h"
 
+//logica de las funciones
+
 void inicializar_hotel(struct habitacion *hotel, int cantidad)
 {
     int indice = 0;

@@ -3,6 +3,7 @@
 
 #include "archivos.h"
 
+//prototipos de las funciones que llevan la logica
 void inicializar_hotel(struct habitacion *hotel, int cantidad);
 void liberar_hotel(struct habitacion *hotel, int cantidad);
 void listar_habitaciones(const struct habitacion *hotel, int cantidad);

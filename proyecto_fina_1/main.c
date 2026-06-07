@@ -3,7 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include "archivos.h"
-#include "hotel.h" // Aca incluimos los prototipos de la logica
+#include "hotel.h" //prototipos de la logica
 
 int main(int argc, char *argv[])
 {
@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     printf("       SISTEMA DE GESTION HOTELERA\n");
     printf("  ==========================================\n\n");
 
-    /* 1. Intentar cargar desde archivo */
+
     cantidad_habitaciones = contar_habitaciones_guardadas();
 
     if (cantidad_habitaciones > 0) {
@@ -25,24 +25,20 @@ int main(int argc, char *argv[])
         hotel = (struct habitacion *)malloc(sizeof(struct habitacion) * cantidad_habitaciones);
         cargar_base_datos(hotel, cantidad_habitaciones);
     } else {
-        /* 2. SI NO HAY DATOS: Pedir al usuario e inicializar */
         printf("[SISTEMA]: No se encontraron datos previos.\n");
         cantidad_habitaciones = pedir_cantidad_habitaciones();
 
-        // ¡CRUCIAL!: Reservar memoria ahora que sabemos la cantidad
+        //Reservar memoria segun las habitaciones que pongamos
         hotel = (struct habitacion *)malloc(sizeof(struct habitacion) * cantidad_habitaciones);
 
-        // Inicializamos las habitaciones
         inicializar_hotel(hotel, cantidad_habitaciones);
     }
-    /* Bucle principal del menu */
+    //menu
     do {
         mostrar_menu();
         if (!leer_entero("Opcion: ", &opcion)) {
             opcion = -1;
         }
-
-        /* Borramos la consola directo usando system, sin funciones extra */
         system("cls");
 
         switch (opcion) {
@@ -69,10 +65,9 @@ int main(int argc, char *argv[])
         }
     } while (opcion != 0);
 
-    /* Liberacion de memoria estricta para evitar fugas (memory leaks) */
     liberar_hotel(hotel, cantidad_habitaciones);
     free(hotel);
-    hotel = NULL; /* Anulamos el puntero por seguridad */
+    hotel = NULL; // Anulamos el puntero por seguridad
 
     return 0;
 }
