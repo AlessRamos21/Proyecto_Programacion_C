@@ -1,0 +1,36 @@
+REPORTE GENERAL DEL HOTEL
+Fecha: 16/06/2026 07:15:47
+==========================================
+Total de habitaciones: 25
+Habitaciones ocupadas: 4  (16.00%)
+Habitaciones libres:   21  (84.00%)
+Habitaciones sucias:   1
+En mantenimiento:      3
+------------------------------------------
+DETALLE POR HABITACION:
+[101] [Simple] [10000.00] [Libre] [Mantenimiento] [-] [-]
+[102] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[103] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[104] [Simple] [10000.00] [Libre] [Mantenimiento] [-] [-]
+[105] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[106] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[107] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[108] [Simple] [10000.00] [Ocupada] [Limpia] [Geronimo Nieva] [16/06/2026 07:13:16]
+[109] [Simple] [10000.00] [Libre] [Limpia] [-] [-]
+[110] [Simple] [10000.00] [Ocupada] [Limpia] [Ramos Alessandro] [16/06/2026 07:09:23]
+[111] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[112] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[113] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[114] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[115] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[116] [Doble] [15000.00] [Libre] [Sucia] [-] [-]
+[117] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[118] [Doble] [15000.00] [Ocupada] [Limpia] [Pehuen Leiva] [16/06/2026 07:09:39]
+[119] [Doble] [15000.00] [Libre] [Limpia] [-] [-]
+[120] [Doble] [15000.00] [Libre] [Mantenimiento] [-] [-]
+[121] [Suite] [25000.00] [Libre] [Limpia] [-] [-]
+[122] [Suite] [25000.00] [Ocupada] [Limpia] [Maria Del Carmen] [16/06/2026 07:13:43]
+[123] [Suite] [25000.00] [Libre] [Limpia] [-] [-]
+[124] [Suite] [25000.00] [Libre] [Limpia] [-] [-]
+[125] [Suite] [25000.00] [Libre] [Limpia] [-] [-]
+==========================================

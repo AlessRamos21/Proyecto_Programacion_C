@@ -180,7 +180,6 @@ void cargar_base_datos(struct habitacion *hotel, int cantidad)
                              registro.huespedes[j].pasaporte);
             }
 
-            free(hotel[i].huespedes[j].nombre);
             hotel[i].huespedes[j].nombre = NULL;
 
             if (j < hotel[i].cantidad_huespedes && strcmp(registro.huespedes[j].nombre, "-") != 0) {
